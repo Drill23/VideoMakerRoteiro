@@ -225,89 +225,101 @@ updateUI();
 // FUNÇÃO DE GRAVAÇÃO DE VÍDEO (VERSÃO FINAL E OTIMIZADA)
 // =================================================================
 async function recordVideo() {
-if (scroll.scrollHeight <= scroll.clientHeight) {
-alert("A conversa é muito curta para gerar um vídeo com rolagem.");
-return;
-}
+    if (scroll.scrollHeight <= scroll.clientHeight) {
+        alert("A conversa é muito curta para gerar um vídeo com rolagem.");
+        return;
+    }
 
-recordVideoBtn.textContent = 'Preparando... 🛠️';
-allButtons.forEach(b => b.disabled = true);
-scroll.scrollTop = 0;
-await new Promise(r => setTimeout(r, 100));
+    recordVideoBtn.textContent = 'Preparando... 🛠️';
+    allButtons.forEach(b => b.disabled = true);
+    scroll.scrollTop = 0;
+    await new Promise(r => setTimeout(r, 200)); // Aguarda a rolagem inicial
 
-try {
-const scale = 2; // Gravar em 2x a resolução para alta qualidade
-const renderOptions = { scale, useCORS: true, logging: false };
+    const a = document.createElement('a');
+    let recorder; // Definido mais tarde
 
-// Renderiza todas as partes necessárias de uma vez
-const [headerCanvas, composerCanvas, chatCanvas, scrollCanvas] = await Promise.all([
-html2canvas(header, renderOptions),
-html2canvas(composer, renderOptions),
-html2canvas(chat, renderOptions), // Captura o fundo corretamente
-html2canvas(scroll, { ...renderOptions, backgroundColor: null }) // Captura só o conteúdo (fundo transparente)
-]);
+    try {
+        const scale = 2;
+        const mainCanvas = document.createElement('canvas');
+        mainCanvas.width = phone.offsetWidth * scale;
+        mainCanvas.height = phone.offsetHeight * scale;
+        const ctx = mainCanvas.getContext('2d', { willReadFrequently: true });
 
-const mainCanvas = document.createElement('canvas');
-mainCanvas.width = phone.offsetWidth * scale;
-mainCanvas.height = phone.offsetHeight * scale;
-const ctx = mainCanvas.getContext('2d');
+        const stream = mainCanvas.captureStream(30); // 30 FPS
+        recorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm; codecs=vp9',
+            videoBitsPerSecond: 8000000 // 8 Mbps para alta qualidade
+        });
+        const chunks = [];
+        recorder.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
 
-const stream = mainCanvas.captureStream(30);
-const recorder = new MediaRecorder(stream, {
-mimeType: 'video/webm; codecs=vp9',
-videoBitsPerSecond: 5000000 // 5 Mbps para alta qualidade
-});
-const chunks = [];
-recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = `conversa-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            recordVideoBtn.textContent = '🎬 Salvar Vídeo';
+            allButtons.forEach(b => b.disabled = false);
+        };
 
-recorder.onstop = () => {
-const blob = new Blob(chunks, { type: 'video/webm' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `conversa-${Date.now()}.webm`;
-a.click();
-URL.revokeObjectURL(url);
-};
+        recorder.start();
+        recordVideoBtn.textContent = 'Gravando... 0%';
 
-recorder.start();
-recordVideoBtn.textContent = 'Gravando... 🔴';
+        const totalScroll = scroll.scrollHeight - scroll.clientHeight;
+        const scrollIncrement = 2; // Píxeis por quadro, controla a velocidade
 
-let yOffset = 0;
-// Usa a altura da imagem renderizada para o cálculo, garantindo precisão
-const maxOffset = scrollCanvas.height - (scroll.clientHeight * scale);
-const scrollSpeed = 1.5 * scale; // Ajusta a velocidade para a nova escala
+        const animate = async () => {
+            if (scroll.scrollTop >= totalScroll) {
+                // Adiciona um último quadro para garantir que o final seja gravado
+                await renderFrame();
+                // Pausa final de 1 segundo
+                mainCanvas.getContext('2d').canvas.toBlob(async () => {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    if (recorder.state === 'recording') recorder.stop();
+                });
+                return;
+            }
 
-const animate = () => {
-if (yOffset > maxOffset) {
-recorder.stop();
-return;
-}
+            await renderFrame();
 
-ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-// 1. Desenha o fundo (capturado do .chat)
-ctx.drawImage(chatCanvas, 0, 0, chatCanvas.width, chatCanvas.height);
-// 2. Desenha o conteúdo da conversa rolando por cima
-ctx.drawImage(scrollCanvas, 0, (header.offsetHeight * scale) - yOffset);
-// 3. Desenha o cabeçalho e rodapé por cima de tudo
-ctx.drawImage(headerCanvas, 0, 0);
-ctx.drawImage(composerCanvas, 0, mainCanvas.height - composerCanvas.height);
+            scroll.scrollTop += scrollIncrement;
+            const progress = Math.round((scroll.scrollTop / totalScroll) * 100);
+            recordVideoBtn.textContent = `Gravando... ${progress}%`;
 
-yOffset += scrollSpeed;
-requestAnimationFrame(animate);
-};
+            requestAnimationFrame(animate);
+        };
 
-requestAnimationFrame(animate);
+        const renderFrame = async () => {
+             // Captura o estado atual do telefone (visível na tela)
+            const frameCanvas = await html2canvas(phone, {
+                scale: scale,
+                useCORS: true,
+                logging: false,
+                // Otimizações: ignora elementos que não mudam
+                ignoreElements: (element) => element.id === 'recordVideoBtn'
+            });
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.drawImage(frameCanvas, 0, 0);
+        }
 
-} catch (error) {
-console.error("Erro ao gravar o vídeo:", error);
-alert("Ocorreu um erro ao tentar gravar o vídeo.");
-} finally {
-recorder.addEventListener('stop', () => {
-recordVideoBtn.textContent = '🎬 Salvar Vídeo';
-allButtons.forEach(b => b.disabled = false);
-}, { once: true });
-}
+        // Adiciona um quadro inicial antes de começar a rolar
+        await renderFrame();
+        // Pausa inicial de 1 segundo
+        mainCanvas.getContext('2d').canvas.toBlob(async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            requestAnimationFrame(animate);
+        });
+
+
+    } catch (error) {
+        console.error("Erro ao gravar o vídeo:", error);
+        alert("Ocorreu um erro ao tentar gravar o vídeo. Verifique o console para detalhes.");
+        if (recorder && recorder.state === "recording") {
+            recorder.stop(); // Tenta parar a gravação em caso de erro
+        }
+    }
 }
 
 // --- EVENT LISTENERS ---
