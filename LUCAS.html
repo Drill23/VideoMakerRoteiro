@@ -235,7 +235,6 @@ async function recordVideo() {
     scroll.scrollTop = 0;
     await new Promise(r => setTimeout(r, 200)); // Aguarda a rolagem inicial
 
-    const a = document.createElement('a');
     let recorder; // Definido mais tarde
 
     try {
@@ -254,12 +253,20 @@ async function recordVideo() {
         recorder.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
 
         recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            a.href = url;
-            a.download = `conversa-${Date.now()}.webm`;
-            a.click();
-            URL.revokeObjectURL(url);
+            if (chunks.length === 0) {
+                alert("Falha na gravação: nenhum dado de vídeo foi capturado.");
+            } else {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                document.body.appendChild(a);
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `conversa-${Date.now()}.webm`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
             recordVideoBtn.textContent = '🎬 Salvar Vídeo';
             allButtons.forEach(b => b.disabled = false);
         };
