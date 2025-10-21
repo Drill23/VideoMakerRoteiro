@@ -6,6 +6,8 @@
 <title>Mock WhatsApp — Lucas</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js"></script>
 <style>
 :root {
 --bg: #0b141a; --bg-chat: #111b21; --bg-header: #202c33; --bg-sent: #005c4b; --bg-received: #202c33; --txt: #e9edef; --txt-dim: #8696a0; --accent: #25d366;
@@ -222,92 +224,108 @@ updateUI();
 }
 
 // =================================================================
-// FUNÇÃO DE GRAVAÇÃO DE VÍDEO (VERSÃO FINAL E OTIMIZADA)
+// FUNÇÃO DE GRAVAÇÃO DE VÍDEO (USANDO FFmpeg.wasm para robustez)
 // =================================================================
 async function recordVideo() {
-if (scroll.scrollHeight <= scroll.clientHeight) {
-alert("A conversa é muito curta para gerar um vídeo com rolagem.");
-return;
-}
+    if (scroll.scrollHeight <= scroll.clientHeight) {
+        alert("A conversa é muito curta para gerar um vídeo com rolagem.");
+        return;
+    }
 
-recordVideoBtn.textContent = 'Preparando... 🛠️';
-allButtons.forEach(b => b.disabled = true);
-scroll.scrollTop = 0;
-await new Promise(r => setTimeout(r, 100));
+    recordVideoBtn.textContent = 'Preparando... 🛠️';
+    allButtons.forEach(b => b.disabled = true);
+    scroll.scrollTop = 0;
+    await new Promise(r => setTimeout(r, 100));
 
-try {
-const scale = 2; // Gravar em 2x a resolução para alta qualidade
-const renderOptions = { scale, useCORS: true, logging: false };
+    const { FFmpeg } = FFmpegWASM;
+    const { toBlobURL } = FFmpegUtil;
+    const ffmpeg = new FFmpeg();
+    const frames = [];
+    const scale = 2; // Alta qualidade
 
-// Renderiza todas as partes necessárias de uma vez
-const [headerCanvas, composerCanvas, chatCanvas, scrollCanvas] = await Promise.all([
-html2canvas(header, renderOptions),
-html2canvas(composer, renderOptions),
-html2canvas(chat, renderOptions), // Captura o fundo corretamente
-html2canvas(scroll, { ...renderOptions, backgroundColor: null }) // Captura só o conteúdo (fundo transparente)
-]);
+    const cleanup = () => {
+        recordVideoBtn.textContent = '🎬 Salvar Vídeo';
+        allButtons.forEach(b => b.disabled = false);
+        scroll.scrollTop = 0;
+    };
 
-const mainCanvas = document.createElement('canvas');
-mainCanvas.width = phone.offsetWidth * scale;
-mainCanvas.height = phone.offsetHeight * scale;
-const ctx = mainCanvas.getContext('2d');
+    try {
+        ffmpeg.on('log', ({ message }) => {
+            console.log('[FFMPEG]', message);
+        });
 
-const stream = mainCanvas.captureStream(30);
-const recorder = new MediaRecorder(stream, {
-mimeType: 'video/webm; codecs=vp9',
-videoBitsPerSecond: 5000000 // 5 Mbps para alta qualidade
-});
-const chunks = [];
-recorder.ondataavailable = e => chunks.push(e.data);
+        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+        recordVideoBtn.textContent = 'Carregando codec... ⏳';
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        });
 
-recorder.onstop = () => {
-const blob = new Blob(chunks, { type: 'video/webm' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `conversa-${Date.now()}.webm`;
-a.click();
-URL.revokeObjectURL(url);
-};
+        // 1. Capturar todos os quadros
+        recordVideoBtn.textContent = 'Capturando quadros... 0%';
+        const totalScroll = scroll.scrollHeight - scroll.clientHeight;
+        const scrollIncrement = 4; // Ajuste para velocidade/qualidade
 
-recorder.start();
-recordVideoBtn.textContent = 'Gravando... 🔴';
+        // Pausa inicial
+        const initialFrame = await html2canvas(phone, { scale, useCORS: true, logging: false });
+        for(let i=0; i < 30; i++) frames.push(initialFrame); // 1 segundo de pausa (30fps)
 
-let yOffset = 0;
-// Usa a altura da imagem renderizada para o cálculo, garantindo precisão
-const maxOffset = scrollCanvas.height - (scroll.clientHeight * scale);
-const scrollSpeed = 1.5 * scale; // Ajusta a velocidade para a nova escala
+        while (scroll.scrollTop < totalScroll) {
+            scroll.scrollTop += scrollIncrement;
+            const frameCanvas = await html2canvas(phone, { scale, useCORS: true, logging: false });
+            frames.push(frameCanvas);
+            const progress = Math.round((scroll.scrollTop / totalScroll) * 100);
+            recordVideoBtn.textContent = `Capturando quadros... ${progress}%`;
+        }
 
-const animate = () => {
-if (yOffset > maxOffset) {
-recorder.stop();
-return;
-}
+        // Pausa final
+        const finalFrame = await html2canvas(phone, { scale, useCORS: true, logging: false });
+        for(let i=0; i < 30; i++) frames.push(finalFrame); // 1 segundo de pausa
 
-ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-// 1. Desenha o fundo (capturado do .chat)
-ctx.drawImage(chatCanvas, 0, 0, chatCanvas.width, chatCanvas.height);
-// 2. Desenha o conteúdo da conversa rolando por cima
-ctx.drawImage(scrollCanvas, 0, (header.offsetHeight * scale) - yOffset);
-// 3. Desenha o cabeçalho e rodapé por cima de tudo
-ctx.drawImage(headerCanvas, 0, 0);
-ctx.drawImage(composerCanvas, 0, mainCanvas.height - composerCanvas.height);
+        // 2. Escrever quadros no sistema de arquivos do FFmpeg
+        recordVideoBtn.textContent = 'Preparando para codificar... ⚙️';
+        for (let i = 0; i < frames.length; i++) {
+            const frameNum = String(i + 1).padStart(4, '0');
+            const blob = await new Promise(resolve => frames[i].toBlob(resolve, 'image/png'));
+            const arrayBuffer = await blob.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            await ffmpeg.writeFile(`frame-${frameNum}.png`, data);
+        }
 
-yOffset += scrollSpeed;
-requestAnimationFrame(animate);
-};
+        // 3. Executar o comando FFmpeg para criar o vídeo
+        recordVideoBtn.textContent = 'Codificando vídeo... 🎥';
+        await ffmpeg.exec([
+            '-framerate', '30',
+            '-i', 'frame-%04d.png',
+            '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'ultrafast',
+            '-crf', '25',
+            'output.mp4'
+        ]);
 
-requestAnimationFrame(animate);
+        // 4. Ler o resultado e acionar o download
+        recordVideoBtn.textContent = 'Finalizando... ✨';
+        const data = await ffmpeg.readFile('output.mp4');
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `conversa-${Date.now()}.mp4`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
 
-} catch (error) {
-console.error("Erro ao gravar o vídeo:", error);
-alert("Ocorreu um erro ao tentar gravar o vídeo.");
-} finally {
-recorder.addEventListener('stop', () => {
-recordVideoBtn.textContent = '🎬 Salvar Vídeo';
-allButtons.forEach(b => b.disabled = false);
-}, { once: true });
-}
+        alert("Vídeo gerado com sucesso!");
+
+    } catch (error) {
+        console.error("Ocorreu um erro durante a gravação com FFmpeg:", error);
+        alert("Ocorreu um erro ao gerar o vídeo. Verifique o console para mais detalhes.");
+    } finally {
+        cleanup();
+    }
 }
 
 // --- EVENT LISTENERS ---
