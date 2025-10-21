@@ -139,6 +139,7 @@ const scriptInput = document.getElementById('scriptInput'), generateScriptBtn = 
 const recordVideoBtn = document.getElementById('recordVideoBtn');
 const allButtons = document.querySelectorAll('.btn');
 const phone = document.getElementById('phone');
+const statusbar = phone.querySelector('.statusbar');
 const header = phone.querySelector('.header');
 const composer = phone.querySelector('.composer');
 const chat = document.getElementById('chat');
@@ -225,89 +226,160 @@ updateUI();
 // FUNÇÃO DE GRAVAÇÃO DE VÍDEO (VERSÃO FINAL E OTIMIZADA)
 // =================================================================
 async function recordVideo() {
-if (scroll.scrollHeight <= scroll.clientHeight) {
-alert("A conversa é muito curta para gerar um vídeo com rolagem.");
-return;
-}
+    if (!('MediaRecorder' in window)) {
+        alert('Este navegador não suporta gravação de vídeo. Tente em um navegador mais recente.');
+        return;
+    }
 
-recordVideoBtn.textContent = 'Preparando... 🛠️';
-allButtons.forEach(b => b.disabled = true);
-scroll.scrollTop = 0;
-await new Promise(r => setTimeout(r, 100));
+    if (scroll.scrollHeight <= scroll.clientHeight + 16) {
+        alert("A conversa é muito curta para gerar um vídeo com rolagem.");
+        return;
+    }
 
-try {
-const scale = 2; // Gravar em 2x a resolução para alta qualidade
-const renderOptions = { scale, useCORS: true, logging: false };
+    recordVideoBtn.textContent = 'Preparando... 🛠️';
+    allButtons.forEach(b => b.disabled = true);
+    scroll.scrollTop = 0;
+    await new Promise(r => setTimeout(r, 120));
 
-// Renderiza todas as partes necessárias de uma vez
-const [headerCanvas, composerCanvas, chatCanvas, scrollCanvas] = await Promise.all([
-html2canvas(header, renderOptions),
-html2canvas(composer, renderOptions),
-html2canvas(chat, renderOptions), // Captura o fundo corretamente
-html2canvas(scroll, { ...renderOptions, backgroundColor: null }) // Captura só o conteúdo (fundo transparente)
-]);
+    const getSupportedMimeType = () => {
+        const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+        return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    };
 
-const mainCanvas = document.createElement('canvas');
-mainCanvas.width = phone.offsetWidth * scale;
-mainCanvas.height = phone.offsetHeight * scale;
-const ctx = mainCanvas.getContext('2d');
+    let recorder = null;
+    let animationFrameId = null;
+    let stopPromise;
+    let finalizeDownload = null;
 
-const stream = mainCanvas.captureStream(30);
-const recorder = new MediaRecorder(stream, {
-mimeType: 'video/webm; codecs=vp9',
-videoBitsPerSecond: 5000000 // 5 Mbps para alta qualidade
-});
-const chunks = [];
-recorder.ondataavailable = e => chunks.push(e.data);
+    try {
+        const scale = Math.max(2, window.devicePixelRatio || 1);
+        const renderOptions = { scale, useCORS: true, logging: false, backgroundColor: null };
 
-recorder.onstop = () => {
-const blob = new Blob(chunks, { type: 'video/webm' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `conversa-${Date.now()}.webm`;
-a.click();
-URL.revokeObjectURL(url);
-};
+        const backgroundColor = getComputedStyle(chat).backgroundColor;
 
-recorder.start();
-recordVideoBtn.textContent = 'Gravando... 🔴';
+        const [statusbarCanvas, headerCanvas, composerCanvas, chatCanvas, scrollCanvas] = await Promise.all([
+            html2canvas(statusbar, renderOptions),
+            html2canvas(header, renderOptions),
+            html2canvas(composer, renderOptions),
+            html2canvas(chat, { ...renderOptions, backgroundColor }),
+            html2canvas(scroll, renderOptions)
+        ]);
 
-let yOffset = 0;
-// Usa a altura da imagem renderizada para o cálculo, garantindo precisão
-const maxOffset = scrollCanvas.height - (scroll.clientHeight * scale);
-const scrollSpeed = 1.5 * scale; // Ajusta a velocidade para a nova escala
+        const mainCanvas = document.createElement('canvas');
+        mainCanvas.width = phone.offsetWidth * scale;
+        mainCanvas.height = phone.offsetHeight * scale;
+        const ctx = mainCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
-const animate = () => {
-if (yOffset > maxOffset) {
-recorder.stop();
-return;
-}
+        const stream = mainCanvas.captureStream(30);
+        const mimeType = getSupportedMimeType();
+        if (!mimeType) {
+            throw new Error('Nenhum formato de vídeo suportado foi encontrado.');
+        }
 
-ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-// 1. Desenha o fundo (capturado do .chat)
-ctx.drawImage(chatCanvas, 0, 0, chatCanvas.width, chatCanvas.height);
-// 2. Desenha o conteúdo da conversa rolando por cima
-ctx.drawImage(scrollCanvas, 0, (header.offsetHeight * scale) - yOffset);
-// 3. Desenha o cabeçalho e rodapé por cima de tudo
-ctx.drawImage(headerCanvas, 0, 0);
-ctx.drawImage(composerCanvas, 0, mainCanvas.height - composerCanvas.height);
+        recorder = new MediaRecorder(stream, {
+            mimeType,
+            videoBitsPerSecond: 6000000
+        });
 
-yOffset += scrollSpeed;
-requestAnimationFrame(animate);
-};
+        const chunks = [];
+        recorder.ondataavailable = e => {
+            if (e.data && e.data.size) {
+                chunks.push(e.data);
+            }
+        };
 
-requestAnimationFrame(animate);
+        stopPromise = new Promise((resolve, reject) => {
+            recorder.onstop = resolve;
+            recorder.onerror = event => reject(event.error || new Error('Falha na gravação.'));
+        });
 
-} catch (error) {
-console.error("Erro ao gravar o vídeo:", error);
-alert("Ocorreu um erro ao tentar gravar o vídeo.");
-} finally {
-recorder.addEventListener('stop', () => {
-recordVideoBtn.textContent = '🎬 Salvar Vídeo';
-allButtons.forEach(b => b.disabled = false);
-}, { once: true });
-}
+        finalizeDownload = () => {
+            if (!chunks.length) {
+                throw new Error('Nenhum dado de vídeo foi gerado.');
+            }
+            const blob = new Blob(chunks, { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `conversa-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        recorder.start();
+        recordVideoBtn.textContent = 'Gravando... 🔴';
+
+        const statusbarHeight = statusbarCanvas.height;
+        const headerHeight = headerCanvas.height;
+        const composerHeight = composerCanvas.height;
+        const chatTop = statusbarHeight + headerHeight;
+        const visibleHeight = scroll.clientHeight * scale;
+        const maxOffset = Math.max(0, scrollCanvas.height - visibleHeight);
+        const scrollSpeed = 2 * scale;
+        const holdFrames = 45;
+        let yOffset = 0;
+        let framesAfterEnd = 0;
+        let stopped = false;
+
+        const renderFrame = () => {
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.drawImage(chatCanvas, 0, chatTop);
+            const scrollY = chatTop - yOffset;
+            ctx.drawImage(scrollCanvas, 0, scrollY);
+            ctx.drawImage(statusbarCanvas, 0, 0);
+            ctx.drawImage(headerCanvas, 0, statusbarHeight);
+            ctx.drawImage(composerCanvas, 0, mainCanvas.height - composerHeight);
+        };
+
+        const step = () => {
+            renderFrame();
+
+            if (yOffset >= maxOffset) {
+                framesAfterEnd += 1;
+                if (!stopped && framesAfterEnd >= holdFrames) {
+                    stopped = true;
+                    recorder.stop();
+                    return;
+                }
+            } else {
+                yOffset = Math.min(maxOffset, yOffset + scrollSpeed);
+            }
+
+            animationFrameId = requestAnimationFrame(step);
+        };
+
+        animationFrameId = requestAnimationFrame(step);
+
+        await stopPromise;
+
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
+        renderFrame();
+        if (typeof finalizeDownload === 'function') {
+            finalizeDownload();
+        }
+
+    } catch (error) {
+        console.error('Erro ao gravar o vídeo:', error);
+        if (stopPromise) {
+            try { await stopPromise; } catch (err) { console.warn('Gravação finalizada com erro:', err); }
+        }
+        alert(error?.message ? `Ocorreu um erro: ${error.message}` : 'Ocorreu um erro ao tentar gravar o vídeo.');
+    } finally {
+        if (recorder && recorder.state === 'recording') {
+            try { recorder.stop(); } catch (err) { console.warn('Não foi possível finalizar o gravador:', err); }
+        }
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        recordVideoBtn.textContent = '🎬 Salvar Vídeo';
+        allButtons.forEach(b => b.disabled = false);
+    }
 }
 
 // --- EVENT LISTENERS ---
