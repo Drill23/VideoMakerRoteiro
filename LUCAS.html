@@ -1,408 +1,1181 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Mock WhatsApp — Lucas</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<style>
-:root {
---bg: #0b141a; --bg-chat: #111b21; --bg-header: #202c33; --bg-sent: #005c4b; --bg-received: #202c33; --txt: #e9edef; --txt-dim: #8696a0; --accent: #25d366;
---chat-bg-image: url('data:image/svg+xml;utf8,<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="%23111b21"/><g stroke="%2327343b" stroke-width="1.2" fill="none" opacity="0.6"><path d="M20 30c6-6 16-6 22 0M60 30c6-6 16-6 22 0M100 30c6-6 16-6 22 0M140 30c6-6 16-6 22 0M180 30c6-6 16-6 22 0"/><circle cx="40" cy="70" r="10"/><rect x="80" y="62" width="24" height="16" rx="3"/><path d="M140 62h24v16h-24z"/><path d="M180 62l12 8-12 8z"/></g></svg>');
-}
-* { box-sizing: border-box }
-body { margin: 0; background: #0a0a0a; color: #fff; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-.wrap { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
-.panel { width: 360px; background: #131a20; border: 1px solid #26313a; border-radius: 12px; padding: 14px; }
-.panel h3 { margin: 20px 0 8px; font-size: 16px; border-top: 1px solid #26313a; padding-top: 16px;}
-.panel h3:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
-.panel label { display: block; font-size: 12px; color: #b6c2c9; margin-top: 10px; margin-bottom: 4px }
-.panel input[type="text"], .panel textarea, .panel select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2b3942; background: #0f171c; color: #dfe7eb; font-family: inherit; font-size: 14px; }
-.panel textarea { resize: vertical; }
-.avatar-edit { display: flex; align-items: center; gap: 10px; padding: 8px; background: #0f171c; border: 1px dashed #2b3942; border-radius: 10px; cursor: pointer }
-.avatar-edit img { width: 44px; height: 44px; object-fit: cover; border: 2px solid #1f2c34 }
-#contactPreview, #mePreview { border-radius: 50% }
-#bgPreview { border-radius: 6px; }
-.sub { font-size: 12px; color: #8aa0aa }
-.btn { width: 100%; margin-top: 12px; padding: 10px 12px; border: 0; border-radius: 8px; background: #0b84ff; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; transition: background-color .2s; }
-.btn:disabled { background-color: #555; cursor: not-allowed; }
-.btn.btn-record { background-color: #25d366; }
-.btn.btn-record:disabled { background-color: #c42727; }
-.btn-ghost { background: #22303a }
-.btn-danger { background: #4a212b; color: #ff8295; }
-.phone { width: 390px; height: 844px; border-radius: 32px; overflow: hidden; background: var(--bg); border: 1px solid #1a232a; box-shadow: 0 20px 60px rgba(0,0,0,.45); display: flex; flex-direction: column; }
-.statusbar { height: 26px; padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; color: #fff; font-weight: 600; flex-shrink: 0; }
-.statusbar .l { font-variant-numeric: tabular-nums }
-.statusbar .r { display: flex; gap: 8px; align-items: center; opacity: .9 }
-.sig, .wifi, .bat { width: 16px; height: 10px; background: #fff; mask-repeat: no-repeat; mask-size: contain }
-.sig { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="20"><g fill="%23fff"><rect x="0" y="10" width="3" height="10"/><rect x="5" y="8" width="3" height="12"/><rect x="10" y="6" width="3" height="14"/><rect x="15" y="4" width="3" height="16"/></g></svg>');}
-.wifi { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M12 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6.5-6.5a10 10 0 0 0-13 0l1.5 1.5a8 8 0 0 1 10 0l1.5-1.5Zm3-3a15 15 0 0 0-19 0l1.5 1.5a13 13 0 0 1 16 0l1.5-1.5Z"/></svg>');}
-.bat { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 14"><rect x="1" y="3" width="20" height="8" rx="2" fill="white"/><rect x="22" y="5" width="3" height="4" rx="1" fill="white"/></svg>');}
-.header { height: 64px; background: var(--bg-header); display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: #fff; border-bottom: 1px solid #1a232a; position:relative; z-index: 10; flex-shrink: 0; }
-.back { width: 24px; height: 24px; background: #fff; mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="m15 18-6-6 6-6"/></svg>'); mask-size: contain; mask-repeat: no-repeat; opacity: .9 }
-.contact-pic { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-.name { font-weight: 700 }
-.top-actions { margin-left: auto; display: flex; gap: 14px }
-.icon { width: 22px; height: 22px; background: #fff; mask-size: contain; mask-repeat: no-repeat; opacity: .9 }
-.video { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M15 8.5V7a2 2 0 0 0-2-2H5A2 2 0 0 0 3 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1.5l6 3v-13l-6 3Z"/></svg>');}
-.phone-ico { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.26c1.1.36 2.3.56 3.6.56a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.56 3.6a1 1 0 0 1-.26 1L6.6 10.8Z"/></svg>');}
-.chat { flex: 1; background-color: var(--bg-chat); position: relative; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; }
-.chat::before { content: ""; position: absolute; inset: 0; opacity: .18; background-image: var(--chat-bg-image); background-size: cover; background-position: center; }
-.scroll { position: relative; padding: 12px; overflow: auto; height: 100%; }
-.msg-row { display: flex; gap: 6px; margin: 6px 0; align-items: flex-end; animation: fadeIn .3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.msg-row.me { justify-content: flex-end }
-.bubble { max-width: 78%; padding: 8px 10px; border-radius: 14px; font-size: 15px; line-height: 1.3; color: var(--txt); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
-.bubble.recv { background: var(--bg-received); border-bottom-left-radius: 4px }
-.bubble.sent { background: var(--bg-sent); border-bottom-right-radius: 4px }
-.meta { font-size: 11px; color: var(--txt-dim); display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 6px }
-.ticks { width: 16px; height: 12px; background: #53bdeb; mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 18"><path fill="%2353bdeb" d="M9 11 5 7l-2 2 6 6 9-9-2-2-7 7Zm10 0-4-4-2 2 6 6 9-9-2-2-7 7Z"/></svg>'); mask-size: contain; mask-repeat: no-repeat }
-.avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-.composer { height: 56px; background: var(--bg-header); display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid #1a232a; position: relative; z-index: 10; flex-shrink: 0;}
-.ico { width: 24px; height: 24px; background: #b7c2c8; mask-size: contain; mask-repeat: no-repeat; opacity: .9 }
-.plus { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M11 5h2v14h-2z"/><path fill="white" d="M5 11h14v2H5z"/></svg>');}
-.emoji { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="8.5" cy="9.5" r="1.5" fill="white"/><circle cx="15.5" cy="9.5" r="1.5" fill="white"/><path fill="none" stroke="white" stroke-width="2" d="M7 14c1.2 1.2 2.7 2 5 2s3.8-.8 5-2"/></svg>');}
-.camera { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M9 4 7.5 6H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3h-2.5L15 4H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"/></svg>');}
-.mic { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-7-3a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0H5Z"/><path fill="white" d="M11 19h2v3h-2z"/></svg>');}
-.input { flex: 1; background: #0f1a20; border: 1px solid #2b3942; color: #dfe7eb; border-radius: 20px; padding: 10px 12px; font-size: 14px }
-.hidden { display: none }
-</style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conversas Fake estilo WhatsApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaPHZ7x+6TnX2UY8ailqXF/w3vGN9VOGBev5nYeD1yfknhk+aoCA8DmFzrQJ5AZt0eOEtp5uWQ57QG5JZs4Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        :root {
+            --canvas-bg: #0b141a;
+            --panel-bg: #0f181f;
+            --panel-border: #1f2b33;
+            --panel-shadow: rgba(4, 8, 12, 0.48);
+            --accent: #25d366;
+            --accent-soft: rgba(37, 211, 102, 0.14);
+            --blue: #0088ff;
+            --blue-dark: #006bd4;
+            --red: #f87171;
+            --text-main: #e9edef;
+            --text-sub: #8696a0;
+            --bubble-me: #005c4b;
+            --bubble-them: #202c33;
+            --chat-bg: url('data:image/svg+xml;utf8,<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><rect fill="%23111b21" width="240" height="240"/><g stroke="%2327343b" stroke-width="1.2" opacity="0.6" fill="none"><path d="M20 30c6-6 16-6 22 0M60 30c6-6 16-6 22 0M100 30c6-6 16-6 22 0M140 30c6-6 16-6 22 0M180 30c6-6 16-6 22 0"/><circle cx="40" cy="70" r="10"/><rect x="80" y="62" width="24" height="16" rx="3"/><path d="M140 62h24v16h-24z"/><path d="M180 62l12 8-12 8z"/></g></svg>');
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at top, #101c25 0%, #05080b 60%, #020304 100%);
+            color: var(--text-main);
+            font-family: var(--font-family, 'Inter', sans-serif);
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0 0 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 span {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        main {
+            width: min(1280px, 100%);
+            margin: 0 auto;
+            padding: 28px 24px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        @media (max-width: 1180px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: linear-gradient(145deg, rgba(19, 26, 33, 0.9), rgba(10, 16, 21, 0.9));
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 25px 60px var(--panel-shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .section-title {
+            margin: 26px 0 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-sub);
+        }
+
+        label {
+            display: block;
+            font-size: 0.88rem;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(4, 10, 14, 0.6);
+            color: var(--text-main);
+            font-size: 0.96rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            border-color: rgba(37, 211, 102, 0.5);
+            outline: none;
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 160px;
+        }
+
+        .avatar-picker {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(6, 14, 18, 0.7);
+            border: 1px dashed rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .avatar-picker:hover {
+            border-color: rgba(37, 211, 102, 0.45);
+            background: rgba(12, 22, 28, 0.9);
+        }
+
+        .avatar-picker input {
+            display: none;
+        }
+
+        .avatar-preview {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            object-fit: cover;
+        }
+
+        .avatar-picker .text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .avatar-picker .title {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .avatar-picker .subtitle {
+            font-size: 0.82rem;
+            color: var(--text-sub);
+        }
+
+        .bg-preview {
+            width: 100%;
+            max-height: 140px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(0, 0, 0, 0.25);
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            box-shadow: 0 12px 30px rgba(0, 136, 255, 0.25);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4d6d, #c9184a);
+            box-shadow: 0 12px 30px rgba(201, 24, 74, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00c853, #009b3a);
+            box-shadow: 0 12px 30px rgba(0, 171, 63, 0.32);
+        }
+
+        .helpers {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-top: 6px;
+        }
+
+        .messages-preview {
+            margin-top: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(6, 12, 16, 0.4);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 210px;
+            overflow-y: auto;
+        }
+
+        .messages-preview .message {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .messages-preview .message .info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .messages-preview .sender {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+        }
+
+        .messages-preview .text {
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .messages-preview .time {
+            font-size: 0.78rem;
+            color: var(--text-sub);
+        }
+
+        .phone-wrapper {
+            display: flex;
+            justify-content: center;
+        }
+
+        .phone {
+            width: 390px;
+            height: 844px;
+            border-radius: 36px;
+            background: var(--canvas-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .statusbar {
+            height: 26px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .statusbar .time {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-icons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-icons span {
+            display: inline-block;
+            width: 16px;
+            height: 12px;
+            background: #fff;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            mask-size: contain;
+            opacity: 0.92;
+        }
+
+        .status-icons .signal {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32"><g fill="white"><rect x="0" y="18" width="6" height="14" rx="2"/><rect x="10" y="14" width="6" height="18" rx="2"/><rect x="20" y="10" width="6" height="22" rx="2"/><rect x="30" y="6" width="6" height="26" rx="2"/></g></svg>');
+        }
+
+        .status-icons .wifi {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M12 20a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4Zm6.5-6.1a10.8 10.8 0 0 0-13 0l1.6 1.6a8.6 8.6 0 0 1 9.8 0l1.6-1.6Zm3.1-3.2a15 15 0 0 0-19.2 0l1.6 1.6a13 13 0 0 1 16 0l1.6-1.6Z"/></svg>');
+        }
+
+        .status-icons .battery {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 16"><rect x="1" y="3" width="24" height="10" rx="2" fill="white"/><rect x="26" y="5.2" width="3" height="5.6" rx="1" fill="white"/></svg>');
+        }
+
+        .chat-header {
+            height: 68px;
+            background: #202c33;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            z-index: 5;
+        }
+
+        .chat-header .back {
+            width: 26px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.85);
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="m15.5 19-7-7 7-7"/></svg>') no-repeat center / contain;
+        }
+
+        .chat-header .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .chat-header .meta {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .chat-header .meta .name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .chat-header .meta .status {
+            font-size: 0.82rem;
+            color: var(--text-sub);
+        }
+
+        .chat-header .actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .chat-header .actions span {
+            width: 22px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.85);
+            mask-repeat: no-repeat;
+            mask-position: center;
+            mask-size: contain;
+        }
+
+        .chat-header .actions .video {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M15 8.5V7a2 2 0 0 0-2-2H5A2 2 0 0 0 3 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1.5l6 3v-13l-6 3Z"/></svg>');
+        }
+
+        .chat-header .actions .call {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.26c1.1.36 2.3.56 3.6.56a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.56 3.6a1 1 0 0 1-.26 1L6.6 10.8Z"/></svg>');
+        }
+
+        .chat {
+            flex: 1;
+            background: #111b21;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .chat::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: var(--chat-bg);
+            background-size: cover;
+            background-position: center;
+            opacity: 0.18;
+        }
+
+        .chat-scroll {
+            position: relative;
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 14px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bubble-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .bubble-row.contact {
+            justify-content: flex-start;
+        }
+
+        .bubble-row.me {
+            justify-content: flex-end;
+        }
+
+        .bubble {
+            max-width: 78%;
+            padding: 10px 12px;
+            font-size: 0.96rem;
+            line-height: 1.35;
+            border-radius: 16px;
+            position: relative;
+            color: var(--text-main);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 4px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .bubble.contact {
+            background: var(--bubble-them);
+            border-bottom-left-radius: 4px;
+        }
+
+        .bubble.me {
+            background: var(--bubble-me);
+            border-bottom-right-radius: 4px;
+        }
+
+        .bubble .meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 5px;
+            font-size: 0.75rem;
+            color: rgba(233, 237, 239, 0.72);
+            margin-top: 6px;
+        }
+
+        .bubble .ticks {
+            width: 16px;
+            height: 12px;
+            background: #53bdeb;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 18"><path fill="white" d="M9 11 5 7 3 9l6 6 9-9-2-2-7 7Zm10 0-4-4-2 2 6 6 9-9-2-2-7 7Z"/></svg>') no-repeat center / contain;
+        }
+
+        .chat-composer {
+            height: 66px;
+            background: #202c33;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+        }
+
+        .chat-composer .icon {
+            width: 26px;
+            height: 26px;
+            background: rgba(201, 209, 215, 0.8);
+            mask-repeat: no-repeat;
+            mask-position: center;
+            mask-size: contain;
+        }
+
+        .chat-composer .icon.plus {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M11 5h2v14h-2z"/><path fill="white" d="M5 11h14v2H5z"/></svg>');
+        }
+
+        .chat-composer .icon.emoji {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="8.5" cy="9.5" r="1.5" fill="white"/><circle cx="15.5" cy="9.5" r="1.5" fill="white"/><path fill="none" stroke="white" stroke-width="2" d="M7 14c1.2 1.2 2.7 2 5 2s3.8-.8 5-2"/></svg>');
+        }
+
+        .chat-composer .icon.camera {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M9 4 7.5 6H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3h-2.5L15 4H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"/></svg>');
+        }
+
+        .chat-composer .icon.mic {
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-7-3a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0H5Z"/><path fill="white" d="M11 19h2v3h-2z"/></svg>');
+        }
+
+        .chat-composer .input {
+            flex: 1;
+            height: 100%;
+            background: rgba(15, 25, 30, 0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .log {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            margin-top: 6px;
+            min-height: 22px;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            padding: 14px 18px;
+            background: rgba(7, 14, 18, 0.92);
+            border-radius: 12px;
+            border: 1px solid rgba(37, 211, 102, 0.35);
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .toast.visible {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
-<div class="wrap">
-<div class="panel">
-<h3>Configurações Gerais</h3>
-<label>Nome do contato</label>
-<input id="contactName" type="text" value="Mãe" />
-<label style="margin-top:12px;">Foto do contato</label>
-<div class="avatar-edit" id="pickContact"><img id="contactPreview" alt="Prévia do avatar do contato"><div><div style="font-weight:700">Selecionar imagem</div><div class="sub">Clique para enviar</div></div><input id="fileContact" type="file" accept="image/*" class="hidden"></div>
-<label style="margin-top:12px;">Seu nome</label>
-<input id="meName" type="text" value="Ana" />
-<label>Sua foto</label>
-<div class="avatar-edit" id="pickMe"><img id="mePreview" alt="Prévia do seu avatar"><div><div style="font-weight:700">Selecionar imagem</div><div class="sub">Opcional</div></div><input id="fileMe" type="file" accept="image/*" class="hidden"></div>
-<label style="margin-top:12px;">Plano de fundo</label>
-<div class="avatar-edit" id="pickBg"><img id="bgPreview" alt="Prévia do plano de fundo"><div><div style="font-weight:700">Selecionar imagem</div><div class="sub">JPG/PNG para o fundo</div></div><input id="fileBg" type="file" accept="image/*" class="hidden"></div>
-<button id="removeBg" class="btn btn-danger" style="display: none; font-size: 12px; padding: 8px;">Remover fundo</button>
+<main>
+    <header>
+        <h1>Editor de Conversas Fake <span>Renderização otimizada para vídeo</span></h1>
+    </header>
 
-<h3>Gerador de Conversa</h3>
-<label>Adicionar mensagem (Manual)</label>
-<div style="background:#0f171c; padding:10px; border-radius: 8px; border:1px solid #2b3942;">
-<textarea id="manualMessageText" rows="3" placeholder="Digite a mensagem..."></textarea>
-<select id="messageSender" style="margin-top:8px;"><option value="me">Eu</option><option value="contact">Contato</option></select>
-<button id="addMessageBtn" class="btn">Adicionar Mensagem</button>
-</div>
-<label style="margin-top:12px;">Gerar a partir de roteiro</label>
-<textarea id="scriptInput" rows="8" placeholder="Cole o roteiro aqui... Exemplo:&#10;Ana: Oi mãe!&#10;Mãe: Oi filha, tudo bem?"></textarea>
-<button id="generateScriptBtn" class="btn">Gerar Conversa</button>
-<button id="clearChatBtn" class="btn btn-danger">Limpar Conversa</button>
+    <section class="layout">
+        <aside class="card" aria-label="Painel de configurações">
+            <h2>Configurações</h2>
 
-<h3>Exportar</h3>
-<button id="recordVideoBtn" class="btn btn-record">🎬 Salvar Vídeo</button>
-</div>
+            <p class="section-title">Identidade</p>
+            <label for="contactName">Nome do contato</label>
+            <input id="contactName" type="text" value="Mãe" autocomplete="off">
 
-<div class="phone" id="phone">
-<div class="statusbar">
-<div class="l" id="clock"></div>
-<div class="r">
-<div class="sig"></div><div class="wifi"></div><div class="bat" style="width:20px;"></div>
-</div>
-</div>
-<div class="header">
-<div class="back"></div>
-<img class="contact-pic" id="headerPic" alt="Avatar do contato no cabeçalho">
-<div><div class="name" id="headerName"></div></div>
-<div class="top-actions"><div class="icon video"></div><div class="icon phone-ico"></div></div>
-</div>
-<div class="chat" id="chat">
-<div class="scroll" id="scroll"></div>
-</div>
-<div class="composer">
-<div class="ico plus"></div><div class="ico emoji"></div>
-<input class="input" placeholder="Mensagem"/>
-<div class="ico camera"></div><div class="ico mic"></div>
-</div>
-</div>
-</div>
+            <div class="avatar-picker" id="contactAvatarPicker">
+                <img id="contactAvatarPreview" class="avatar-preview" alt="Avatar do contato">
+                <div class="text">
+                    <span class="title">Selecionar avatar do contato</span>
+                    <span class="subtitle">PNG, JPG ou WebP</span>
+                </div>
+                <input id="contactAvatarInput" type="file" accept="image/*">
+            </div>
+
+            <label for="userName">Seu nome</label>
+            <input id="userName" type="text" value="Ana" autocomplete="off">
+
+            <div class="avatar-picker" id="userAvatarPicker">
+                <img id="userAvatarPreview" class="avatar-preview" alt="Seu avatar">
+                <div class="text">
+                    <span class="title">Selecionar seu avatar</span>
+                    <span class="subtitle">Opcional</span>
+                </div>
+                <input id="userAvatarInput" type="file" accept="image/*">
+            </div>
+
+            <p class="section-title">Plano de Fundo</p>
+            <div class="avatar-picker" id="backgroundPicker" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                <img id="backgroundPreview" class="bg-preview" alt="Plano de fundo da conversa">
+                <div class="text">
+                    <span class="title">Escolher imagem de fundo</span>
+                    <span class="subtitle">Clique para enviar uma imagem personalizada</span>
+                </div>
+                <input id="backgroundInput" type="file" accept="image/*">
+            </div>
+            <button class="btn btn-outline" id="resetBackground" type="button" style="margin-top: 8px;">Usar padrão do WhatsApp</button>
+
+            <p class="section-title">Mensagens</p>
+            <label for="messageAuthor">Quem fala?</label>
+            <select id="messageAuthor">
+                <option value="contact">Contato</option>
+                <option value="me">Você</option>
+            </select>
+
+            <label for="messageText">Mensagem</label>
+            <textarea id="messageText" placeholder="Digite a mensagem exatamente como deve aparecer"></textarea>
+
+            <div class="actions">
+                <button class="btn btn-outline" id="addMessage" type="button">Adicionar mensagem</button>
+                <button class="btn btn-danger" id="clearMessages" type="button">Limpar conversa</button>
+            </div>
+
+            <p class="section-title">Importar roteiro</p>
+            <label for="scriptInput">Cole seu roteiro com o formato NOME: frase</label>
+            <textarea id="scriptInput" placeholder="MÃE:\nPor favor, volta para casa.\nANA:\nNão posso, estou em Paris."></textarea>
+            <button class="btn btn-outline" id="parseScript" type="button" style="margin-top: 12px;">Converter roteiro em mensagens</button>
+
+            <div class="messages-preview" id="messagesPreview" aria-live="polite"></div>
+            <div class="log" id="messageLog"></div>
+
+            <p class="section-title">Exportar vídeo</p>
+            <button class="btn btn-success" id="recordVideo" type="button">🎬 Renderizar vídeo</button>
+            <p class="helpers">O vídeo é salvo automaticamente em formato WebM 60fps. Utilize o VLC ou converta para MP4 se preferir.</p>
+        </aside>
+
+        <div class="card" aria-label="Pré-visualização do telefone">
+            <h2>Pré-visualização</h2>
+            <div class="phone-wrapper">
+                <div class="phone" id="phone">
+                    <div class="statusbar" id="statusbar">
+                        <span class="time" id="statusTime">00:00</span>
+                        <div class="status-icons">
+                            <span class="signal"></span>
+                            <span class="wifi"></span>
+                            <span class="battery"></span>
+                        </div>
+                    </div>
+                    <div class="chat-header" id="chatHeader">
+                        <span class="back" aria-hidden="true"></span>
+                        <img id="headerAvatar" class="avatar" alt="Avatar do contato">
+                        <div class="meta">
+                            <span class="name" id="headerName">Contato</span>
+                            <span class="status">online agora</span>
+                        </div>
+                        <div class="actions">
+                            <span class="video" aria-hidden="true"></span>
+                            <span class="call" aria-hidden="true"></span>
+                        </div>
+                    </div>
+                    <div class="chat" id="chat">
+                        <div class="chat-scroll" id="chatScroll"></div>
+                        <div class="chat-composer" id="chatComposer">
+                            <span class="icon plus" aria-hidden="true"></span>
+                            <span class="icon emoji" aria-hidden="true"></span>
+                            <div class="input" aria-hidden="true"></div>
+                            <span class="icon camera" aria-hidden="true"></span>
+                            <span class="icon mic" aria-hidden="true"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="toast" id="toast"></div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-// --- ELEMENTOS DO DOM ---
-const contactNameInput = document.getElementById('contactName');
-const meNameInput = document.getElementById('meName');
-const pickContact = document.getElementById('pickContact'), fileContact = document.getElementById('fileContact');
-const pickMe = document.getElementById('pickMe'), fileMe = document.getElementById('fileMe');
-const contactPreview = document.getElementById('contactPreview'), mePreview = document.getElementById('mePreview');
-const pickBg = document.getElementById('pickBg'), fileBg = document.getElementById('fileBg'), bgPreview = document.getElementById('bgPreview'), removeBg = document.getElementById('removeBg');
-const manualMessageText = document.getElementById('manualMessageText'), messageSender = document.getElementById('messageSender'), addMessageBtn = document.getElementById('addMessageBtn');
-const scriptInput = document.getElementById('scriptInput'), generateScriptBtn = document.getElementById('generateScriptBtn'), clearChatBtn = document.getElementById('clearChatBtn');
-const recordVideoBtn = document.getElementById('recordVideoBtn');
-const allButtons = document.querySelectorAll('.btn');
-const phone = document.getElementById('phone');
-const statusbar = phone.querySelector('.statusbar');
-const header = phone.querySelector('.header');
-const composer = phone.querySelector('.composer');
-const chat = document.getElementById('chat');
-const scroll = document.getElementById('scroll');
-const headerName = document.getElementById('headerName');
-const headerPic = document.getElementById('headerPic');
-
-// --- ESTADO ---
-let contactAvatarUrl = null, meAvatarUrl = null;
-const defaultBgSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%2327343b"/></svg>';
-
-// --- FUNÇÕES BÁSICAS ---
-const getCurrentTime = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-function createPlaceholder(letter) { return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='%231f2c34'/><text x='50%' y='55%' fill='%238696a0' font-size='40' font-family='Inter, sans-serif' text-anchor='middle' dy='.1em'>${encodeURIComponent(letter)}</text></svg>`; }
-function readImg(file, callback) { const reader = new FileReader(); reader.onload = e => callback(e.target.result); reader.readAsDataURL(file); }
-
-function updateUI() {
-const contactName = contactNameInput.value || 'Contato';
-const meName = meNameInput.value || 'Eu';
-headerName.textContent = contactName;
-messageSender.options[0].textContent = `Eu (${meName})`;
-messageSender.options[1].textContent = `Contato (${contactName})`;
-const contactInitial = contactName.trim().charAt(0).toUpperCase();
-const meInitial = meName.trim().charAt(0).toUpperCase();
-const finalContactSrc = contactAvatarUrl || createPlaceholder(contactInitial);
-const finalMeSrc = meAvatarUrl || createPlaceholder(meInitial);
-contactPreview.src = finalContactSrc;
-headerPic.src = finalContactSrc;
-document.querySelectorAll('.contact-avatar').forEach(el => el.src = finalContactSrc);
-mePreview.src = finalMeSrc;
-}
-
-// --- FUNÇÕES DO GERADOR DE CONVERSA ---
-function addMessage(sender, text, timestamp) {
-const row = document.createElement('div');
-row.className = 'msg-row';
-const bubble = document.createElement('div');
-bubble.className = 'bubble';
-const sanitizedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
-bubble.innerHTML = `${sanitizedText}<div class="meta">${timestamp || getCurrentTime()}</div>`;
-if (sender === 'me') {
-row.classList.add('me');
-bubble.classList.add('sent');
-bubble.querySelector('.meta').innerHTML += `<span class="ticks"></span>`;
-} else {
-bubble.classList.add('recv');
-const avatar = document.createElement('img');
-avatar.className = 'avatar contact-avatar';
-avatar.src = contactAvatarUrl || createPlaceholder((contactNameInput.value||'C').charAt(0));
-row.appendChild(avatar);
-}
-row.appendChild(bubble);
-scroll.appendChild(row);
-scroll.scrollTop = scroll.scrollHeight;
-}
-
-function parseAndGenerateScript() {
-clearChatBtn.click();
-const script = scriptInput.value.trim();
-if (!script) return;
-const meName = meNameInput.value.trim().toLowerCase();
-const contactName = contactNameInput.value.trim().toLowerCase();
-const lines = script.split('\n');
-let currentSender = null;
-let messageBuffer = [];
-const flushMessage = () => { if (currentSender && messageBuffer.length > 0) { addMessage(currentSender, messageBuffer.join('\n')); messageBuffer = []; } };
-lines.forEach(line => {
-const match = line.match(/^([^:]+):/);
-if (match) {
-flushMessage();
-const speaker = match[1].trim().toLowerCase();
-currentSender = (speaker === meName) ? 'me' : 'contact';
-const messagePart = line.substring(match[0].length).trim();
-if (messagePart) messageBuffer.push(messagePart);
-} else {
-if (currentSender) messageBuffer.push(line.trim());
-}
-});
-flushMessage();
-updateUI();
-}
-
-// =================================================================
-// FUNÇÃO DE GRAVAÇÃO DE VÍDEO (VERSÃO FINAL E OTIMIZADA)
-// =================================================================
-async function recordVideo() {
-    if (!('MediaRecorder' in window)) {
-        alert('Este navegador não suporta gravação de vídeo. Tente em um navegador mais recente.');
-        return;
-    }
-
-    if (scroll.scrollHeight <= scroll.clientHeight + 16) {
-        alert("A conversa é muito curta para gerar um vídeo com rolagem.");
-        return;
-    }
-
-    recordVideoBtn.textContent = 'Preparando... 🛠️';
-    allButtons.forEach(b => b.disabled = true);
-    scroll.scrollTop = 0;
-    await new Promise(r => setTimeout(r, 120));
-
-    const getSupportedMimeType = () => {
-        const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-        return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
-    };
-
-    let recorder = null;
-    let animationFrameId = null;
-    let stopPromise;
-    let finalizeDownload = null;
-
-    try {
-        const scale = Math.max(2, window.devicePixelRatio || 1);
-        const renderOptions = { scale, useCORS: true, logging: false, backgroundColor: null };
-
-        const backgroundColor = getComputedStyle(chat).backgroundColor;
-
-        const [statusbarCanvas, headerCanvas, composerCanvas, chatCanvas, scrollCanvas] = await Promise.all([
-            html2canvas(statusbar, renderOptions),
-            html2canvas(header, renderOptions),
-            html2canvas(composer, renderOptions),
-            html2canvas(chat, { ...renderOptions, backgroundColor }),
-            html2canvas(scroll, renderOptions)
-        ]);
-
-        const mainCanvas = document.createElement('canvas');
-        mainCanvas.width = phone.offsetWidth * scale;
-        mainCanvas.height = phone.offsetHeight * scale;
-        const ctx = mainCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        const stream = mainCanvas.captureStream(30);
-        const mimeType = getSupportedMimeType();
-        if (!mimeType) {
-            throw new Error('Nenhum formato de vídeo suportado foi encontrado.');
-        }
-
-        recorder = new MediaRecorder(stream, {
-            mimeType,
-            videoBitsPerSecond: 6000000
-        });
-
-        const chunks = [];
-        recorder.ondataavailable = e => {
-            if (e.data && e.data.size) {
-                chunks.push(e.data);
+    document.addEventListener('DOMContentLoaded', () => {
+        const state = {
+            messages: [],
+            assets: {
+                contactAvatar: null,
+                userAvatar: null,
+                background: null
             }
         };
 
-        stopPromise = new Promise((resolve, reject) => {
-            recorder.onstop = resolve;
-            recorder.onerror = event => reject(event.error || new Error('Falha na gravação.'));
+        const elements = {
+            contactName: document.getElementById('contactName'),
+            contactAvatarPicker: document.getElementById('contactAvatarPicker'),
+            contactAvatarInput: document.getElementById('contactAvatarInput'),
+            contactAvatarPreview: document.getElementById('contactAvatarPreview'),
+            userName: document.getElementById('userName'),
+            userAvatarPicker: document.getElementById('userAvatarPicker'),
+            userAvatarInput: document.getElementById('userAvatarInput'),
+            userAvatarPreview: document.getElementById('userAvatarPreview'),
+            backgroundPicker: document.getElementById('backgroundPicker'),
+            backgroundInput: document.getElementById('backgroundInput'),
+            backgroundPreview: document.getElementById('backgroundPreview'),
+            resetBackground: document.getElementById('resetBackground'),
+            messageAuthor: document.getElementById('messageAuthor'),
+            messageText: document.getElementById('messageText'),
+            addMessage: document.getElementById('addMessage'),
+            clearMessages: document.getElementById('clearMessages'),
+            scriptInput: document.getElementById('scriptInput'),
+            parseScript: document.getElementById('parseScript'),
+            messagesPreview: document.getElementById('messagesPreview'),
+            messageLog: document.getElementById('messageLog'),
+            recordVideo: document.getElementById('recordVideo'),
+            toast: document.getElementById('toast'),
+            statusTime: document.getElementById('statusTime'),
+            headerAvatar: document.getElementById('headerAvatar'),
+            headerName: document.getElementById('headerName'),
+            chat: document.getElementById('chat'),
+            chatScroll: document.getElementById('chatScroll'),
+            chatComposer: document.getElementById('chatComposer'),
+            phone: document.getElementById('phone'),
+            statusbar: document.getElementById('statusbar'),
+            chatHeader: document.getElementById('chatHeader')
+        };
+
+        const DEFAULT_BG = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg');
+
+        const readFileAsDataURL = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+            reader.readAsDataURL(file);
         });
 
-        finalizeDownload = () => {
-            if (!chunks.length) {
-                throw new Error('Nenhum dado de vídeo foi gerado.');
+        const showToast = message => {
+            elements.toast.textContent = message;
+            elements.toast.classList.add('visible');
+            setTimeout(() => elements.toast.classList.remove('visible'), 2400);
+        };
+
+        const setBackground = url => {
+            state.assets.background = url;
+            elements.chat.style.setProperty('--chat-bg', url ? `url(${url})` : DEFAULT_BG.trim());
+            elements.backgroundPreview.src = url || '';
+        };
+
+        const createMessage = ({ sender, text, time }) => {
+            const row = document.createElement('div');
+            row.className = `bubble-row ${sender === 'me' ? 'me' : 'contact'}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${sender === 'me' ? 'me' : 'contact'}`;
+            bubble.innerHTML = `${text.replace(/\n/g, '<br>')}<div class="meta"><span class="time">${time}</span>${sender === 'me' ? '<span class="ticks"></span>' : ''}</div>`;
+
+            row.appendChild(bubble);
+            return row;
+        };
+
+        const renderMessages = () => {
+            elements.chatScroll.innerHTML = '';
+            state.messages.forEach(message => {
+                elements.chatScroll.appendChild(createMessage(message));
+            });
+            elements.chatScroll.scrollTop = elements.chatScroll.scrollHeight;
+
+            if (!state.messages.length) {
+                elements.chatScroll.innerHTML = '<div style="margin: auto; text-align: center; color: var(--text-sub); font-size: 0.9rem;">Sem mensagens ainda. Adicione manualmente ou importe um roteiro.</div>';
             }
-            const blob = new Blob(chunks, { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `conversa-${Date.now()}.webm`;
-            a.click();
-            URL.revokeObjectURL(url);
         };
 
-        recorder.start();
-        recordVideoBtn.textContent = 'Gravando... 🔴';
+        const renderPreviewList = () => {
+            elements.messagesPreview.innerHTML = '';
+            if (!state.messages.length) {
+                elements.messagesPreview.innerHTML = '<div style="color: var(--text-sub); font-size: 0.86rem;">Nenhuma mensagem adicionada.</div>';
+                return;
+            }
 
-        const statusbarHeight = statusbarCanvas.height;
-        const headerHeight = headerCanvas.height;
-        const composerHeight = composerCanvas.height;
-        const chatTop = statusbarHeight + headerHeight;
-        const visibleHeight = scroll.clientHeight * scale;
-        const maxOffset = Math.max(0, scrollCanvas.height - visibleHeight);
-        const scrollSpeed = 2 * scale;
-        const holdFrames = 45;
-        let yOffset = 0;
-        let framesAfterEnd = 0;
-        let stopped = false;
+            state.messages.forEach((msg, index) => {
+                const container = document.createElement('div');
+                container.className = 'message';
 
-        const renderFrame = () => {
-            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-            ctx.drawImage(chatCanvas, 0, chatTop);
-            const scrollY = chatTop - yOffset;
-            ctx.drawImage(scrollCanvas, 0, scrollY);
-            ctx.drawImage(statusbarCanvas, 0, 0);
-            ctx.drawImage(headerCanvas, 0, statusbarHeight);
-            ctx.drawImage(composerCanvas, 0, mainCanvas.height - composerHeight);
+                const info = document.createElement('div');
+                info.className = 'info';
+
+                const senderLabel = document.createElement('span');
+                senderLabel.className = 'sender';
+                senderLabel.textContent = msg.sender === 'me' ? elements.userName.value || 'Você' : elements.contactName.value || 'Contato';
+
+                const text = document.createElement('span');
+                text.className = 'text';
+                text.textContent = msg.text;
+
+                info.appendChild(senderLabel);
+                info.appendChild(text);
+
+                const time = document.createElement('span');
+                time.className = 'time';
+                time.textContent = msg.time;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-outline';
+                removeBtn.style.padding = '8px 10px';
+                removeBtn.style.fontSize = '0.78rem';
+                removeBtn.textContent = 'Remover';
+                removeBtn.addEventListener('click', () => {
+                    state.messages.splice(index, 1);
+                    renderMessages();
+                    renderPreviewList();
+                });
+
+                container.appendChild(info);
+                container.appendChild(time);
+                container.appendChild(removeBtn);
+
+                elements.messagesPreview.appendChild(container);
+            });
         };
 
-        const step = () => {
-            renderFrame();
+        const getCurrentTime = () => {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        };
 
-            if (yOffset >= maxOffset) {
-                framesAfterEnd += 1;
-                if (!stopped && framesAfterEnd >= holdFrames) {
-                    stopped = true;
-                    recorder.stop();
-                    return;
+        const addMessageToState = (sender, text) => {
+            if (!text.trim()) {
+                elements.messageLog.textContent = 'Digite uma mensagem para adicionar.';
+                return;
+            }
+
+            const sanitized = text.trim();
+            const time = getCurrentTime();
+
+            state.messages.push({ sender, text: sanitized, time });
+            elements.messageText.value = '';
+            elements.messageText.focus();
+            elements.messageLog.textContent = '';
+            renderMessages();
+            renderPreviewList();
+        };
+
+        const parseScript = raw => {
+            const lines = raw.split(/\r?\n/);
+            const parsed = [];
+            let currentSender = null;
+            let buffer = [];
+
+            const flushBuffer = () => {
+                if (!currentSender) return;
+                const text = buffer.join('\n').trim();
+                if (!text) return;
+                parsed.push({ sender: currentSender, text });
+                buffer = [];
+            };
+
+            lines.forEach(line => {
+                const match = line.match(/^([^:]+):\s*(.*)$/);
+                if (match) {
+                    flushBuffer();
+                    const label = match[1].trim().toUpperCase();
+                    const content = match[2];
+                    if (label === (elements.userName.value.trim().toUpperCase() || 'VOCÊ') || label === 'EU' || label === 'ME' || label === 'ANA' || label === 'VOCE') {
+                        currentSender = 'me';
+                    } else {
+                        currentSender = 'contact';
+                    }
+                    buffer.push(content);
+                } else if (buffer.length) {
+                    buffer.push(line);
                 }
-            } else {
-                yOffset = Math.min(maxOffset, yOffset + scrollSpeed);
-            }
-
-            animationFrameId = requestAnimationFrame(step);
+            });
+            flushBuffer();
+            return parsed;
         };
 
-        animationFrameId = requestAnimationFrame(step);
+        const updateHeaders = () => {
+            const contactName = elements.contactName.value.trim() || 'Contato';
+            elements.headerName.textContent = contactName;
+            elements.statusTime.textContent = getCurrentTime();
+        };
 
-        await stopPromise;
+        const updateAvatars = () => {
+            elements.headerAvatar.src = state.assets.contactAvatar || 'https://i.imgur.com/JYUB0m3.png';
+            elements.contactAvatarPreview.src = state.assets.contactAvatar || 'https://i.imgur.com/JYUB0m3.png';
+            elements.userAvatarPreview.src = state.assets.userAvatar || 'https://i.imgur.com/PiFQZ8Y.png';
+        };
 
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
+        const disableAllButtons = disabled => {
+            document.querySelectorAll('button').forEach(button => {
+                if (button !== elements.recordVideo) {
+                    button.disabled = disabled;
+                }
+            });
+            elements.recordVideo.disabled = disabled;
+        };
 
-        renderFrame();
-        if (typeof finalizeDownload === 'function') {
-            finalizeDownload();
-        }
+        const waitForFontLoading = async () => {
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        };
 
-    } catch (error) {
-        console.error('Erro ao gravar o vídeo:', error);
-        if (stopPromise) {
-            try { await stopPromise; } catch (err) { console.warn('Gravação finalizada com erro:', err); }
-        }
-        alert(error?.message ? `Ocorreu um erro: ${error.message}` : 'Ocorreu um erro ao tentar gravar o vídeo.');
-    } finally {
-        if (recorder && recorder.state === 'recording') {
-            try { recorder.stop(); } catch (err) { console.warn('Não foi possível finalizar o gravador:', err); }
-        }
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-        }
-        recordVideoBtn.textContent = '🎬 Salvar Vídeo';
-        allButtons.forEach(b => b.disabled = false);
-    }
-}
+        const captureElement = async (element, scale = 2, options = {}) => {
+            return html2canvas(element, {
+                scale,
+                backgroundColor: options.backgroundColor ?? null,
+                useCORS: true,
+                logging: false,
+                removeContainer: true,
+                width: options.width,
+                height: options.height,
+                scrollY: -window.scrollY
+            });
+        };
 
-// --- EVENT LISTENERS ---
-contactNameInput.addEventListener('input', updateUI);
-meNameInput.addEventListener('input', updateUI);
-pickContact.addEventListener('click', () => fileContact.click());
-pickMe.addEventListener('click', () => fileMe.click());
-fileContact.addEventListener('change', e => e.target.files[0] && readImg(e.target.files[0], url => { contactAvatarUrl = url; updateUI(); }));
-fileMe.addEventListener('change', e => e.target.files[0] && readImg(e.target.files[0], url => { meAvatarUrl = url; updateUI(); }));
-pickBg.addEventListener('click', () => fileBg.click());
-fileBg.addEventListener('change', e => e.target.files[0] && readImg(e.target.files[0], url => {bgPreview.src = url;chat.style.setProperty('--chat-bg-image', `url(${url})`);removeBg.style.display = 'block';}));
-removeBg.addEventListener('click', () => {chat.style.removeProperty('--chat-bg-image');bgPreview.src = defaultBgSVG;removeBg.style.display = 'none';fileBg.value = '';});
-addMessageBtn.addEventListener('click', () => {const text = manualMessageText.value.trim();if (!text) return;addMessage(messageSender.value, text);manualMessageText.value = '';});
-generateScriptBtn.addEventListener('click', parseAndGenerateScript);
-clearChatBtn.addEventListener('click', () => scroll.innerHTML = '');
-recordVideoBtn.addEventListener('click', recordVideo);
+        const recordVideo = async () => {
+            if (!('captureStream' in HTMLCanvasElement.prototype)) {
+                alert('Seu navegador não suporta gravação direta de canvas. Utilize o Chrome ou Edge mais recentes.');
+                return;
+            }
 
-// --- INICIALIZAÇÃO ---
-document.getElementById('clock').textContent = getCurrentTime();
-bgPreview.src = defaultBgSVG;
-updateUI();
-scriptInput.value = "MÃE:\nPor favor, volta pra casa. Só até a gente se ajeitar. Eu prometo que tudo vai mudar.\nANA:\nMãe… eu não posso.\nMÃE:\nPor quê?\nANA:\nPorque eu tô em Paris agora.";
-});
+            if (!state.messages.length) {
+                alert('Adicione pelo menos uma mensagem antes de gravar.');
+                return;
+            }
+
+            disableAllButtons(true);
+            elements.recordVideo.textContent = 'Renderizando...';
+
+            try {
+                await waitForFontLoading();
+
+                const phoneRect = elements.phone.getBoundingClientRect();
+                const scale = Math.max(2, window.devicePixelRatio * 1.5);
+                const width = Math.round(phoneRect.width * scale);
+                const height = Math.round(phoneRect.height * scale);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                const stream = canvas.captureStream(60);
+                if (!stream) {
+                    throw new Error('Falha ao iniciar a captura do canvas.');
+                }
+
+                const mimeCandidates = [
+                    'video/webm;codecs=vp9',
+                    'video/webm;codecs=vp8',
+                    'video/webm'
+                ];
+
+                let mimeType = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type));
+                if (!mimeType) {
+                    mimeType = 'video/webm';
+                }
+
+                const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+                const chunks = [];
+
+                recorder.ondataavailable = event => {
+                    if (event.data?.size) {
+                        chunks.push(event.data);
+                    }
+                };
+
+                let resolveStop;
+                let rejectStop;
+                const stopPromise = new Promise((resolve, reject) => {
+                    resolveStop = resolve;
+                    rejectStop = reject;
+                });
+
+                recorder.onstop = resolveStop;
+                recorder.onerror = event => rejectStop(event.error || new Error('Falha ao gravar o vídeo.'));
+
+                recorder.start();
+
+                const statusCanvas = await captureElement(elements.statusbar, scale);
+                const headerCanvas = await captureElement(elements.chatHeader, scale);
+                const composerCanvas = await captureElement(elements.chatComposer, scale);
+
+                const scrollEl = elements.chatScroll;
+                const originalScrollTop = scrollEl.scrollTop;
+                scrollEl.scrollTop = 0;
+                const scrollCanvas = await captureElement(scrollEl, scale, {
+                    width: scrollEl.scrollWidth,
+                    height: scrollEl.scrollHeight
+                });
+                scrollEl.scrollTop = originalScrollTop;
+
+                const headerHeight = headerCanvas.height;
+                const statusHeight = statusCanvas.height;
+                const composerHeight = composerCanvas.height;
+                const visibleHeight = Math.round(scrollEl.clientHeight * scale);
+                const totalScrollable = Math.max(0, scrollCanvas.height - visibleHeight);
+
+                let yOffset = 0;
+                const scrollSpeed = Math.max(1, Math.round(scale * 2));
+                let holdFrames = 75;
+                let finalFrames = 0;
+                let animationFrame;
+
+                const paintFrame = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.fillStyle = '#0b141a';
+                    ctx.fillRect(0, 0, width, height);
+
+                    ctx.drawImage(scrollCanvas, 0, statusHeight + headerHeight - yOffset);
+                    ctx.drawImage(statusCanvas, 0, 0);
+                    ctx.drawImage(headerCanvas, 0, statusHeight);
+                    ctx.drawImage(composerCanvas, 0, height - composerHeight);
+                };
+
+                const step = () => {
+                    paintFrame();
+                    if (yOffset >= totalScrollable) {
+                        finalFrames += 1;
+                        if (finalFrames >= holdFrames) {
+                            recorder.stop();
+                            cancelAnimationFrame(animationFrame);
+                            return;
+                        }
+                    } else {
+                        yOffset = Math.min(totalScrollable, yOffset + scrollSpeed);
+                    }
+                    animationFrame = requestAnimationFrame(step);
+                };
+
+                animationFrame = requestAnimationFrame(step);
+
+                await stopPromise;
+
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `conversa-${Date.now()}.webm`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                showToast('Vídeo salvo com sucesso!');
+            } catch (error) {
+                console.error(error);
+                alert(error?.message || 'Não foi possível gerar o vídeo. Tente novamente.');
+            } finally {
+                elements.recordVideo.textContent = '🎬 Renderizar vídeo';
+                disableAllButtons(false);
+            }
+        };
+
+        elements.contactAvatarPicker.addEventListener('click', () => elements.contactAvatarInput.click());
+        elements.userAvatarPicker.addEventListener('click', () => elements.userAvatarInput.click());
+        elements.backgroundPicker.addEventListener('click', () => elements.backgroundInput.click());
+
+        elements.contactAvatarInput.addEventListener('change', async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                const dataUrl = await readFileAsDataURL(file);
+                state.assets.contactAvatar = dataUrl;
+                updateAvatars();
+                renderMessages();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        elements.userAvatarInput.addEventListener('change', async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                const dataUrl = await readFileAsDataURL(file);
+                state.assets.userAvatar = dataUrl;
+                updateAvatars();
+                renderMessages();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        elements.backgroundInput.addEventListener('change', async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                const dataUrl = await readFileAsDataURL(file);
+                setBackground(dataUrl);
+                renderMessages();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        elements.resetBackground.addEventListener('click', () => {
+            setBackground(null);
+            showToast('Plano de fundo restaurado.');
+            renderMessages();
+        });
+
+        elements.addMessage.addEventListener('click', () => {
+            addMessageToState(elements.messageAuthor.value, elements.messageText.value);
+        });
+
+        elements.clearMessages.addEventListener('click', () => {
+            if (confirm('Tem certeza que deseja remover todas as mensagens?')) {
+                state.messages = [];
+                renderMessages();
+                renderPreviewList();
+            }
+        });
+
+        elements.parseScript.addEventListener('click', () => {
+            const raw = elements.scriptInput.value.trim();
+            if (!raw) {
+                elements.messageLog.textContent = 'Cole um roteiro no campo acima para importar.';
+                return;
+            }
+            const parsed = parseScript(raw);
+            if (!parsed.length) {
+                elements.messageLog.textContent = 'Não foi possível interpretar o roteiro. Use o formato NOME: mensagem.';
+                return;
+            }
+            parsed.forEach(item => {
+                const time = getCurrentTime();
+                state.messages.push({ sender: item.sender, text: item.text, time });
+            });
+            renderMessages();
+            renderPreviewList();
+            elements.messageLog.textContent = `${parsed.length} mensagens adicionadas a partir do roteiro.`;
+        });
+
+        elements.recordVideo.addEventListener('click', recordVideo);
+
+        elements.contactName.addEventListener('input', () => {
+            updateHeaders();
+            renderMessages();
+        });
+
+        elements.userName.addEventListener('input', () => {
+            renderPreviewList();
+        });
+
+        updateHeaders();
+        updateAvatars();
+        setBackground(null);
+        renderMessages();
+        renderPreviewList();
+
+        elements.scriptInput.value = `MÃE:
+Por favor, volta pra casa. Só até a gente se ajeitar. Eu prometo que tudo vai mudar.
+ANA:
+Mãe… eu não posso.
+MÃE:
+Por quê?
+ANA:
+Porque eu tô em Paris agora.`;
+    });
 </script>
 </body>
 </html>
