@@ -6,6 +6,8 @@
 <title>Mock WhatsApp — Lucas</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js"></script>
 <style>
 :root {
 --bg: #0b141a; --bg-chat: #111b21; --bg-header: #202c33; --bg-sent: #005c4b; --bg-received: #202c33; --txt: #e9edef; --txt-dim: #8696a0; --accent: #25d366;
@@ -222,7 +224,7 @@ updateUI();
 }
 
 // =================================================================
-// FUNÇÃO DE GRAVAÇÃO DE VÍDEO (VERSÃO FINAL E OTIMIZADA)
+// FUNÇÃO DE GRAVAÇÃO DE VÍDEO (USANDO FFmpeg.wasm para robustez)
 // =================================================================
 async function recordVideo() {
     if (scroll.scrollHeight <= scroll.clientHeight) {
@@ -233,99 +235,96 @@ async function recordVideo() {
     recordVideoBtn.textContent = 'Preparando... 🛠️';
     allButtons.forEach(b => b.disabled = true);
     scroll.scrollTop = 0;
-    await new Promise(r => setTimeout(r, 200)); // Aguarda a rolagem inicial
+    await new Promise(r => setTimeout(r, 100));
 
-    let recorder; // Definido mais tarde
+    const { FFmpeg } = FFmpegWASM;
+    const { toBlobURL } = FFmpegUtil;
+    const ffmpeg = new FFmpeg();
+    const frames = [];
+    const scale = 2; // Alta qualidade
+
+    const cleanup = () => {
+        recordVideoBtn.textContent = '🎬 Salvar Vídeo';
+        allButtons.forEach(b => b.disabled = false);
+        scroll.scrollTop = 0;
+    };
 
     try {
-        const scale = 2;
-        const mainCanvas = document.createElement('canvas');
-        mainCanvas.width = phone.offsetWidth * scale;
-        mainCanvas.height = phone.offsetHeight * scale;
-        const ctx = mainCanvas.getContext('2d', { willReadFrequently: true });
-
-        const stream = mainCanvas.captureStream(30); // 30 FPS
-        recorder = new MediaRecorder(stream, {
-            mimeType: 'video/webm; codecs=vp9',
-            videoBitsPerSecond: 8000000 // 8 Mbps para alta qualidade
+        ffmpeg.on('log', ({ message }) => {
+            console.log('[FFMPEG]', message);
         });
-        const chunks = [];
-        recorder.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
 
-        recorder.onstop = () => {
-            if (chunks.length === 0) {
-                alert("Falha na gravação: nenhum dado de vídeo foi capturado.");
-            } else {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                document.body.appendChild(a);
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `conversa-${Date.now()}.webm`;
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }
-            recordVideoBtn.textContent = '🎬 Salvar Vídeo';
-            allButtons.forEach(b => b.disabled = false);
-        };
+        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+        recordVideoBtn.textContent = 'Carregando codec... ⏳';
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        });
 
-        recorder.start();
-        recordVideoBtn.textContent = 'Gravando... 0%';
-
+        // 1. Capturar todos os quadros
+        recordVideoBtn.textContent = 'Capturando quadros... 0%';
         const totalScroll = scroll.scrollHeight - scroll.clientHeight;
-        const scrollIncrement = 2; // Píxeis por quadro, controla a velocidade
+        const scrollIncrement = 4; // Ajuste para velocidade/qualidade
 
-        const animate = async () => {
-            if (scroll.scrollTop >= totalScroll) {
-                // Adiciona um último quadro para garantir que o final seja gravado
-                await renderFrame();
-                // Pausa final de 1 segundo
-                mainCanvas.getContext('2d').canvas.toBlob(async () => {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    if (recorder.state === 'recording') recorder.stop();
-                });
-                return;
-            }
+        // Pausa inicial
+        const initialFrame = await html2canvas(phone, { scale, useCORS: true, logging: false });
+        for(let i=0; i < 30; i++) frames.push(initialFrame); // 1 segundo de pausa (30fps)
 
-            await renderFrame();
-
+        while (scroll.scrollTop < totalScroll) {
             scroll.scrollTop += scrollIncrement;
+            const frameCanvas = await html2canvas(phone, { scale, useCORS: true, logging: false });
+            frames.push(frameCanvas);
             const progress = Math.round((scroll.scrollTop / totalScroll) * 100);
-            recordVideoBtn.textContent = `Gravando... ${progress}%`;
-
-            requestAnimationFrame(animate);
-        };
-
-        const renderFrame = async () => {
-             // Captura o estado atual do telefone (visível na tela)
-            const frameCanvas = await html2canvas(phone, {
-                scale: scale,
-                useCORS: true,
-                logging: false,
-                // Otimizações: ignora elementos que não mudam
-                ignoreElements: (element) => element.id === 'recordVideoBtn'
-            });
-            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-            ctx.drawImage(frameCanvas, 0, 0);
+            recordVideoBtn.textContent = `Capturando quadros... ${progress}%`;
         }
 
-        // Adiciona um quadro inicial antes de começar a rolar
-        await renderFrame();
-        // Pausa inicial de 1 segundo
-        mainCanvas.getContext('2d').canvas.toBlob(async () => {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            requestAnimationFrame(animate);
-        });
+        // Pausa final
+        const finalFrame = await html2canvas(phone, { scale, useCORS: true, logging: false });
+        for(let i=0; i < 30; i++) frames.push(finalFrame); // 1 segundo de pausa
 
+        // 2. Escrever quadros no sistema de arquivos do FFmpeg
+        recordVideoBtn.textContent = 'Preparando para codificar... ⚙️';
+        for (let i = 0; i < frames.length; i++) {
+            const frameNum = String(i + 1).padStart(4, '0');
+            const blob = await new Promise(resolve => frames[i].toBlob(resolve, 'image/png'));
+            const arrayBuffer = await blob.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            await ffmpeg.writeFile(`frame-${frameNum}.png`, data);
+        }
+
+        // 3. Executar o comando FFmpeg para criar o vídeo
+        recordVideoBtn.textContent = 'Codificando vídeo... 🎥';
+        await ffmpeg.exec([
+            '-framerate', '30',
+            '-i', 'frame-%04d.png',
+            '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'ultrafast',
+            '-crf', '25',
+            'output.mp4'
+        ]);
+
+        // 4. Ler o resultado e acionar o download
+        recordVideoBtn.textContent = 'Finalizando... ✨';
+        const data = await ffmpeg.readFile('output.mp4');
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `conversa-${Date.now()}.mp4`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        alert("Vídeo gerado com sucesso!");
 
     } catch (error) {
-        console.error("Erro ao gravar o vídeo:", error);
-        alert("Ocorreu um erro ao tentar gravar o vídeo. Verifique o console para detalhes.");
-        if (recorder && recorder.state === "recording") {
-            recorder.stop(); // Tenta parar a gravação em caso de erro
-        }
+        console.error("Ocorreu um erro durante a gravação com FFmpeg:", error);
+        alert("Ocorreu um erro ao gerar o vídeo. Verifique o console para mais detalhes.");
+    } finally {
+        cleanup();
     }
 }
 
